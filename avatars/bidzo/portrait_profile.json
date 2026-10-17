@@ -1,0 +1,32 @@
+{
+  "profile": {
+    "chin_darkness": 0.1543,
+    "beard": "stubble",
+    "hairline": null,
+    "forehead_reach": 0.85,
+    "reach_floor": 0.452,
+    "lips": "open",
+    "mouth_ratio": 0.1097
+  },
+  "preparation": {
+    "scale": 1.0,
+    "padding": [
+      206,
+      0,
+      0,
+      0
+    ],
+    "size": [
+      1328,
+      1006
+    ],
+    "face_height_px": 397.1,
+    "room_below_chin": 0.513,
+    "crop_headroom_px": 56.0,
+    "chin_drop_max_px": 56.0
+  },
+  "engine_options": {
+    "mask_chin_reach": "auto",
+    "mask_forehead_reach": "hairline"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "manifest_version": 1,
+  "id": "my_avatar_swap",
+  "name": "My Avatar (swap)",
+  "version": "1.0.0",
+  "description": "Road C (2026-10-17): the my_avatar_neural portrait as an IDENTITY painted onto the camera's face (inswapper_128 + GFPGAN on TensorRT). The driver's own pose, expression, hair and light; the avatar's eyes, nose, mouth and skin.",
+  "tags": [
+    "owner",
+    "swap"
+  ],
+  "preview": null,
+  "assets": [
+    {
+      "path": "portrait.png",
+      "role": "source_portrait",
+      "optional": false
+    }
+  ],
+  "engine": {
+    "engine_id": "swap",
+    "estimated_vram_mb": 900,
+    "device_preference": "cuda"
+  },
+  "rendering": {
+    "output_width": 1280,
+    "output_height": 720
+  },
+  "engine_options": {
+    "enhance": true,
+    "enhance_strength": 0.75,
+    "swap_mask": "hull",
+    "mask_grow": 0.03,
+    "mask_feather": 0.04,
+    "mouth_hole": 1.0,
+    "lips_keep": 0.0,
+    "lips_source": "avatar",
+    "shave": "auto"
+  }
+}

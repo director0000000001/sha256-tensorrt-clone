@@ -1,0 +1,468 @@
+{
+ "about": "Nodes of the swap networks whose values leave fp16's range on a real face (scripts/probes/swap_fp16_range.py, 2026-10-17, RTX 5070 Ti). sha256.avatar.swap_models keeps them and their consumers in fp32 when it writes the fp16 ONNX for TensorRT.",
+ "onnx": {
+  "inswapper": "inswapper_128.onnx (sha256 e4a3f08c753cb72d04e10aa0f7dbe3deebbf39567d4ead6dce08e98aa49e16af)",
+  "gfpgan": "gfpgan_1.4.onnx (sha256 accc4757b26bdb89b32b4d3500d4f79c9dff97c1dd7c7104bf9dcb95e3311385)"
+ },
+ "blocks": {
+  "inswapper": [
+   {
+    "tensor": "onnx::ReduceMean_162",
+    "node": "Mul_65",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 1762303.9
+   },
+   {
+    "tensor": "onnx::Add_163",
+    "node": "ReduceMean_66",
+    "op": "ReduceMean",
+    "flag": "risk",
+    "max_abs": 48702.3
+   },
+   {
+    "tensor": "onnx::Sqrt_165",
+    "node": "Add_68",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 48702.3
+   },
+   {
+    "tensor": "onnx::ReduceMean_216",
+    "node": "Mul_110",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 133734.4
+   },
+   {
+    "tensor": "onnx::ReduceMean_270",
+    "node": "Mul_155",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 1057308.4
+   },
+   {
+    "tensor": "onnx::Add_271",
+    "node": "ReduceMean_156",
+    "op": "ReduceMean",
+    "flag": "risk",
+    "max_abs": 37369.5
+   },
+   {
+    "tensor": "onnx::Sqrt_273",
+    "node": "Add_158",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 37369.5
+   },
+   {
+    "tensor": "onnx::ReduceMean_324",
+    "node": "Mul_200",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 286391.8
+   },
+   {
+    "tensor": "onnx::ReduceMean_378",
+    "node": "Mul_245",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 809561.5
+   },
+   {
+    "tensor": "onnx::Add_379",
+    "node": "ReduceMean_246",
+    "op": "ReduceMean",
+    "flag": "risk",
+    "max_abs": 28796.1
+   },
+   {
+    "tensor": "onnx::Sqrt_381",
+    "node": "Add_248",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 28796.1
+   },
+   {
+    "tensor": "onnx::ReduceMean_432",
+    "node": "Mul_290",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 178261.1
+   },
+   {
+    "tensor": "onnx::ReduceMean_486",
+    "node": "Mul_335",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 2074030.4
+   },
+   {
+    "tensor": "onnx::Add_487",
+    "node": "ReduceMean_336",
+    "op": "ReduceMean",
+    "flag": "risk",
+    "max_abs": 34624.0
+   },
+   {
+    "tensor": "onnx::Sqrt_489",
+    "node": "Add_338",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 34624.0
+   },
+   {
+    "tensor": "onnx::ReduceMean_540",
+    "node": "Mul_380",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 215386.2
+   },
+   {
+    "tensor": "onnx::ReduceMean_594",
+    "node": "Mul_425",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 3183499.8
+   },
+   {
+    "tensor": "onnx::Add_595",
+    "node": "ReduceMean_426",
+    "op": "ReduceMean",
+    "flag": "risk",
+    "max_abs": 33181.1
+   },
+   {
+    "tensor": "onnx::Sqrt_597",
+    "node": "Add_428",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 33181.1
+   },
+   {
+    "tensor": "onnx::ReduceMean_648",
+    "node": "Mul_470",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 86145.9
+   },
+   {
+    "tensor": "onnx::ReduceMean_702",
+    "node": "Mul_515",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 1957987.6
+   },
+   {
+    "tensor": "onnx::Add_703",
+    "node": "ReduceMean_516",
+    "op": "ReduceMean",
+    "flag": "overflow",
+    "max_abs": 196733.9
+   },
+   {
+    "tensor": "onnx::Sqrt_705",
+    "node": "Add_518",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 196733.9
+   },
+   {
+    "tensor": "onnx::ReduceMean_756",
+    "node": "Mul_560",
+    "op": "Mul",
+    "flag": "overflow",
+    "max_abs": 886148.1
+   }
+  ],
+  "gfpgan": [
+   {
+    "tensor": "/ReduceSum_output_0",
+    "node": "/ReduceSum",
+    "op": "ReduceSum",
+    "flag": "risk",
+    "max_abs": 38566.2
+   },
+   {
+    "tensor": "/Constant_6_output_0",
+    "node": "/Constant_6",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_7_output_0",
+    "node": "/Add_7",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 38566.2
+   },
+   {
+    "tensor": "/Constant_20_output_0",
+    "node": "/Constant_20",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/ReduceSum_2_output_0",
+    "node": "/ReduceSum_2",
+    "op": "ReduceSum",
+    "flag": "risk",
+    "max_abs": 32209.8
+   },
+   {
+    "tensor": "/Constant_31_output_0",
+    "node": "/Constant_31",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_15_output_0",
+    "node": "/Add_15",
+    "op": "Add",
+    "flag": "risk",
+    "max_abs": 32209.8
+   },
+   {
+    "tensor": "/Constant_46_output_0",
+    "node": "/Constant_46",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_4_output_0",
+    "node": "/Pow_4",
+    "op": "Pow",
+    "flag": "risk",
+    "max_abs": 13384.3
+   },
+   {
+    "tensor": "/ReduceSum_4_output_0",
+    "node": "/ReduceSum_4",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 82908.1
+   },
+   {
+    "tensor": "/Constant_58_output_0",
+    "node": "/Constant_58",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_24_output_0",
+    "node": "/Add_24",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 82908.1
+   },
+   {
+    "tensor": "/Constant_73_output_0",
+    "node": "/Constant_73",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_6_output_0",
+    "node": "/Pow_6",
+    "op": "Pow",
+    "flag": "overflow",
+    "max_abs": 81835.3
+   },
+   {
+    "tensor": "/ReduceSum_6_output_0",
+    "node": "/ReduceSum_6",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 441843.2
+   },
+   {
+    "tensor": "/Constant_85_output_0",
+    "node": "/Constant_85",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_33_output_0",
+    "node": "/Add_33",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 441843.2
+   },
+   {
+    "tensor": "/Constant_100_output_0",
+    "node": "/Constant_100",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_8_output_0",
+    "node": "/Pow_8",
+    "op": "Pow",
+    "flag": "risk",
+    "max_abs": 42277.6
+   },
+   {
+    "tensor": "/ReduceSum_8_output_0",
+    "node": "/ReduceSum_8",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 252265.1
+   },
+   {
+    "tensor": "/Constant_111_output_0",
+    "node": "/Constant_111",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_42_output_0",
+    "node": "/Add_42",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 252265.1
+   },
+   {
+    "tensor": "/Constant_126_output_0",
+    "node": "/Constant_126",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_10_output_0",
+    "node": "/Pow_10",
+    "op": "Pow",
+    "flag": "risk",
+    "max_abs": 43413.9
+   },
+   {
+    "tensor": "/ReduceSum_10_output_0",
+    "node": "/ReduceSum_10",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 248884.6
+   },
+   {
+    "tensor": "/Constant_138_output_0",
+    "node": "/Constant_138",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_51_output_0",
+    "node": "/Add_51",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 248884.6
+   },
+   {
+    "tensor": "/Mul_43_output_0",
+    "node": "/Mul_43",
+    "op": "Mul",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Reshape_73_output_0",
+    "node": "/Reshape_73",
+    "op": "Reshape",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Constant_153_output_0",
+    "node": "/Constant_153",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_12_output_0",
+    "node": "/Pow_12",
+    "op": "Pow",
+    "flag": "risk",
+    "max_abs": 61783.2
+   },
+   {
+    "tensor": "/ReduceSum_12_output_0",
+    "node": "/ReduceSum_12",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 471794.7
+   },
+   {
+    "tensor": "/Constant_164_output_0",
+    "node": "/Constant_164",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_60_output_0",
+    "node": "/Add_60",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 471794.7
+   },
+   {
+    "tensor": "/Mul_51_output_0",
+    "node": "/Mul_51",
+    "op": "Mul",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Reshape_85_output_0",
+    "node": "/Reshape_85",
+    "op": "Reshape",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Constant_179_output_0",
+    "node": "/Constant_179",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Pow_14_output_0",
+    "node": "/Pow_14",
+    "op": "Pow",
+    "flag": "overflow",
+    "max_abs": 556643.7
+   },
+   {
+    "tensor": "/ReduceSum_14_output_0",
+    "node": "/ReduceSum_14",
+    "op": "ReduceSum",
+    "flag": "overflow",
+    "max_abs": 2742260.0
+   },
+   {
+    "tensor": "/Constant_190_output_0",
+    "node": "/Constant_190",
+    "op": "Constant",
+    "flag": "underflow",
+    "max_abs": 0.0
+   },
+   {
+    "tensor": "/Add_69_output_0",
+    "node": "/Add_69",
+    "op": "Add",
+    "flag": "overflow",
+    "max_abs": 2742260.0
+   }
+  ]
+ }
+}

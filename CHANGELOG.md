@@ -13,6 +13,33 @@ Versions below `1.0.0` carry no API stability guarantee.
 
 ### Added
 
+- **Road C (2026-10-17): the one-shot face swap engine, in the
+  sha256-tensorrt-clone tree.** A new engine, `swap` (`[engine] backend =
+  "swap"`): the camera's face as it is -- his pose, expression, turn and
+  light -- with the avatar's identity painted on it by inswapper_128 and
+  restored by GFPGAN 1.4, both as TensorRT fp16 plans built at the first
+  start from fp16 ONNX files the application writes itself (TensorRT 11
+  builds strongly typed networks only; the public converters mis-wire the
+  graph, so `sha256.avatar.swap_models` carries its own, with the nodes
+  that overflow fp16 on a real face kept fp32). No photograph to turn, no
+  calibration: turns to where the tracker loses the face. The avatar stays
+  inside the person's face oval (nothing on their hair); the opening of
+  the mouth stays the person's own teeth (`mouth_hole`) because the
+  restorer invents teeth; the LIPS are the portrait's, warped onto the
+  person's lip geometry every frame (`lips_source = "avatar"`), because
+  inswapper draws a talking mouth a third open; and a clean-shaven avatar
+  can have the person's stubble smoothed and tinted away before the
+  restorer draws clean skin (`shave`, "auto" reads the portrait). Every
+  avatar with a portrait drives it, the library's LivePortrait and
+  photograph avatars included; `bidzo_swap` and `my_avatar_swap` carry
+  the options spelled out. `scripts/build_exe.py --engine swap` packages
+  it with the three fp16 networks and no LivePortrait weights. Measured
+  on the RTX 5070 Ti over driving.mkv: 30.0 fps, the engine 25.2 ms p50 /
+  29.2 p99 a frame. InsightFace's weights are research-only without a licence:
+  the client's copy needs InsightFace's commercial licence for
+  inswapper_128 and the recognition model (docs/development/ROADMAP.md,
+  "Road C").
+
 - **Day 23 (2026-10-16): the avatar in the person's own skin colour, and
   shaved (the owner's ideas, from his recording).** Add avatar's window now
   has three prompts, in the order they are made: the face with hair from

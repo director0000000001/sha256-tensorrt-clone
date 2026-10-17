@@ -7804,6 +7804,220 @@ narrowed or pushed outward at a turn (the day-20 `_PROFILE_PUSH`), so
 the filled strip lands at full alpha. Tests: test_engine_turn_gain.py
 (7: the gains, the fill CPU/GPU, a row without an edge).
 
+## Road C (2026-10-17, 04:10): a one-shot face swap -- this tree, sha256-tensorrt-clone
+
+### Why this tree exists
+
+Day 24 (2026-10-16 night to 10-17 04:00, in sha256-tensorrt) built road B:
+two turned photographs of the avatar beside the portrait, each a source of
+its own, the switch past 28-32 degrees with a crossfade. It measured and
+worked (the turn followed 1:1 to 54 degrees, frontal frames bit-identical),
+and his five live looks ended with "it is very noticeable that the
+photograph changes" -- measured: the generator's turned photograph is a
+second RENDITION of the face (17 grey levels apart from the front's drawing
+at the switch, colour 2-3 of it, the rest creases and light), and no fade,
+colour match or feature blend makes two renditions one face; the generator
+could not give him the same face three times. His word 03:50: sha256-tensorrt
+back to the pushed state he liked (a384738; the day's work in `git stash`
+"day 24 (2026-10-17)..." and recordings/day24-reverted.patch), this exact
+copy made (no dist, no recordings but driving.*), and road C started here.
+Branch `road-c`; nothing is pushed from this tree without his word.
+
+### What road C is, plainly
+
+LivePortrait DRAWS the avatar's photograph and moves it with his face: the
+output is the photograph, so a turn past what one photograph holds has to be
+invented. A one-shot face swap goes the other way: it takes HIS face as it
+is in the camera frame (his pose, his expression, his turn, his light) and
+paints the avatar's IDENTITY onto it -- one embedding of the avatar's
+portrait, computed once at load, and a small network that re-renders his
+aligned face crop with that identity. There is no photograph to turn, so a
+turn is whatever his face does (to about 70 degrees, where detection ends);
+no calibration (the expression is his own); any face, any person. The
+price: the output is his face shape with the avatar's features -- a
+likeness of about 70%, not the photograph -- and the crop is 128 px (256
+in the newer models), so an enhancer runs after it or the face is soft.
+This is what DeepFaceLive's "Insight" mode is (inswapper_128 + an
+enhancer), the look he named as the goal.
+
+### The models, and the licences (checked 2026-10-17; sources in the day's notes)
+
+| model | what | licence | use |
+|---|---|---|---|
+| InsightFace inswapper_128 (+ buffalo_l: the detector and the ArcFace embedding) | the swap DeepFaceLive uses | the CODE is MIT, the WEIGHTS are non-commercial research; InsightFace sells a commercial licence for inswapper_128 | the quality he wants; the test can run on research terms, the delivery needs the licence (his decision, with the client) |
+| GHOST (ai-forever, 2022) | a one-shot swap, Apache-2.0 | Apache-2.0 code and weights; its identity encoder is an ArcFace -- whose weights' licence must be read before a commercial use | the free candidate; quality and speed unmeasured |
+| ReSwapper | an open re-implementation of inswapper (128/256) | AGPL-3.0, and an open issue on whether training against inswapper carries its terms | no: AGPL on a closed app, and the provenance question |
+| SimSwap, AlphaFace, Deep-Live-Cam's models | | non-commercial | no |
+| GFPGAN 1.4 | the enhancer (512) | Apache-2.0 (third-party parts to read) | yes, after a read of its parts |
+| CodeFormer | the enhancer | S-Lab, non-commercial | no |
+
+The fact that decides the client's version: EVERY good open swap today is
+trained on InsightFace's ArcFace embedding, and InsightFace's pretrained
+weights are research-only. So the client's delivery is one of: (1) the
+InsightFace commercial licence for inswapper_128 (and the recognition
+model), the simplest and the DeepFaceLive quality; (2) GHOST, if its
+ArcFace weights clear and its quality holds (to be measured); (3) a
+swapper trained here on a clean identity encoder (weeks, data licences).
+His call, with the client; the tests below run on research terms.
+
+### The pipeline, in this app's words
+
+Per frame, on the render thread (the tracker thread stays as it is):
+
+1. ALIGN: the five points (eyes, nose, mouth corners) from the MediaPipe
+   landmarks the tracker already gives -> the ArcFace similarity to a
+   128x128 (or 256) crop of his face. No new detector on the frame path.
+2. SWAP: the swapper network (TensorRT, FP16): the aligned crop + the
+   avatar's embedding (computed at load from portrait.png, cached in the
+   avatar folder) -> the swapped crop. inswapper_128 is small: a few ms.
+3. ENHANCE: GFPGAN (TensorRT, 512, ~15-25 ms FP16 on his GPU by published
+   figures) on the swapped crop -- the one step that threatens 30 fps; the
+   levers: 256 input, every other frame, or a lighter restorer.
+4. PASTE: the inverse similarity and the mask, THIS app's paste (the
+   feather, the edge colour match, the hairline join, the background
+   guard: days 13-23's work stays, it is engine-agnostic).
+
+Budget on his PC (33 ms a frame, the render thread today 21.5 p50 with
+LivePortrait): swap 5-8 + enhance 15-25 + paste 9 = 29-42 ms -> the
+enhancer decides; measured, not guessed, before any promise.
+
+### The steps
+
+- C0 (now): this plan; his licence decision; his permission to download
+  the test models (inswapper_128.onnx ~530 MB, buffalo_l ~300 MB,
+  GFPGANv1.4.pth ~350 MB).
+- C1: a still test on his own presses (captures/moment-*: camera.png is
+  his face at +40, -32, -52): swap + enhance, the likeness and the turn
+  quality seen before any pipeline work. GHOST the same, side by side.
+- C2: `engine_swap.py` behind the same engine interface (load_avatar =
+  the embedding; animate = align, swap, enhance, paste); the avatar's
+  manifest says which engine draws it; the UI untouched.
+- C3: TensorRT plans for the swapper and the enhancer; frame_budget on
+  driving.mkv; the 30-fps proof.
+- C4: his live look; the package.
+
+### C0-C3 built and measured (2026-10-17, 05:40-07:20)
+
+C0. The clone's `.venv` had lost torch, TensorRT, MediaPipe and cv2 to a
+`uv sync` four minutes after the copy (uv prunes what the lock's default
+groups do not name); the packages were copied back from sha256-tensorrt's
+`.venv` (7.98 GB). RULE: never `uv run` or `uv sync` in these trees; start
+the application with `start-swap.bat` (`.venv\Scripts\sha256.exe`). The test
+models downloaded on his word, sizes exact, sha256 in
+models/downloads/swap/SHA256SUMS.txt: inswapper_128.onnx (InsightFace's own
+release link still serves it), buffalo_l.zip (only w600k_r50.onnx is used),
+gfpgan_1.4.onnx (facefusion's export). GHOST not downloaded: its identity
+encoder is InsightFace's ArcFace too, so it buys nothing on the licence.
+The captures' yaws are +40, -32 and +34 (the "-52" above was wrong).
+
+C1. The stills (scripts/probes/swap_still.py): the turn holds at all three,
+the avatar's identity on his face in his light; ArcFace cosine to the avatar
+0.88-0.89 after the swap, 0.80-0.85 after GFPGAN, to him ~0 (before: ~0).
+TensorRT (scripts/probes/swap_trt_time.py, each net alone, p50 of 200): fp32
+inswapper 8.6 ms, GFPGAN 14.6; **fp16 inswapper 2.9, GFPGAN 5.7, ArcFace
+0.7 (load only)**, within 2-3 grey levels of the fp32 outputs on his face.
+TensorRT 11 has no FP16 flag (strongly typed networks only), so fp16 means an
+fp16 ONNX; onnxruntime's and onnxconverter_common's converters mis-wire a
+partially converted graph (21 dB even with every op kept fp32) -- our own
+converter lives in `sha256.avatar.swap_models.to_fp16`, with the nodes that
+overflow fp16 on a real face (inswapper's instance-norm variances and
+GFPGAN's StyleGAN2 demodulations, up to 3e6: models/metadata/
+swap_fp16_blocks.json, from scripts/probes/swap_fp16_range.py) and their
+consumers kept fp32.
+
+C2. `sha256.avatar.engine_swap.SwapEngine` (registry id "swap", `[engine]
+backend = "swap"` in local.toml) behind the engine protocol: load_avatar =
+the portrait's five points from the tracker's landmarker, the ArcFace 112
+crop, the embedding through inswapper's emap; animate = the tracker's five
+points -> the 128 ArcFace crop -> inswapper -> paste inside the face oval
+(MediaPipe's silhouette: nothing on his hair) -> the FFHQ 512 crop -> GFPGAN
+-> paste inside the oval; a lost face passes the camera frame through. The
+paste blends only the crop's rows and columns with cv2.blendLinear (numpy's
+float blend was 9 ms, this 0.7); the networks' pre- and post-processing on
+the GPU. Avatars bidzo_swap and my_avatar_swap (portrait.png copies, options
+in metadata.json). Through the engine on his captures: 13-15 ms a frame.
+**His first live look (07:00): "the rest is ideal, the best"; two faults:
+the mouth does not follow well, and the teeth on a smile.** Measured on
+driving.mkv's smile, open-mouth and talk frames
+(scripts/probes/swap_clip_stills.py): inswapper itself draws his talking
+mouth a third open (the portrait's closed mouth leaks through the
+identity), GFPGAN closes it further and invents teeth; a crop with more chin
+(`swap_zoom`, `swap_shift`) changes nothing. The fix, default: his OWN mouth
+through a hole in both masks -- `lips_keep` 1.0 (the outer-lip ring) and
+`mouth_hole` 1.0 (the inner ring), feathered, nothing when the lips are
+shut; `enhance_strength` 0.75. The smile, the open mouth and the talk match
+the original; the avatar sits in the eyes, nose, brows and skin.
+
+C3. frame_budget --engine swap, threads, realtime, driving.mkv (1850
+frames): **30.0 fps** (publish p50 33.34 / p90 34.49 ms), 1847 published, 2
+dropped at capture; animate p50 17.1 / p90 18.5 / p99 19.7 ms (align 0.7 +
+swap 3.5 + paste 1.5 + enhance 6.3 + paste 4.7), tracker 6.3, end-to-end
+latency p50 25.3 / p99 31.0. LivePortrait's render thread was 21.5 / 23.4:
+~13 ms of headroom for the client's weaker cards.
+
+**His second live look (07:40): "the mouth follows now, but the avatar
+has MY lips, and below the red line it is MY jaw" (his drawing: the chin
+and the jaw under the lips) -- "the avatar's lips as in the photograph must
+stay, on every avatar, mandatory".** Measured on his capture: the swap's
+128 crop reaches 41 px below the chin and the oval covers the jaw; what
+reads as his jaw is his STUBBLE, which inswapper keeps (it preserves the
+target's texture) and GFPGAN sharpens. Built, the defaults now:
+
+- `lips_source = "avatar"`: the PORTRAIT's lips on his lip geometry. The
+  lip band (MediaPipe's outer and inner lip rings, 40 triangles) is warped
+  piecewise-affine from the portrait's 512 crop onto his, after GFPGAN,
+  three pixels inside the ring and feathered (the photograph's lip edge
+  drew a dark line otherwise), its colour moved by the Lab-median
+  difference between the portrait's oval and the restored face's, pasted
+  whole; the opening stays his own teeth (`mouth_hole`). The lips are the
+  avatar's and move exactly as his.
+- `shave` (1.0 for bidzo_swap, 0 for the bearded my_avatar_swap): the oval
+  below the nose's base, the lips left out, smoothed by a half-size median
+  and tinted to the skin's Lab median (the lightness only 60%, the chin
+  keeps its shadow) BEFORE GFPGAN, which then draws clean skin there; the
+  restorer's share is whole in that zone. Chin and moustache clean on the
+  clip and on his capture.
+- The cost, 42 ms at first, brought to 22-25 ms a frame: the lips' work
+  confined to their box, the medians on a stride, the oval mask at half
+  size (cProfile: the 3.4 ms "download" per network is the GPU wait, not
+  CPU). frame_budget --engine swap, threads, realtime, driving.mkv: **30.0
+  fps** (publish p50 33.30 / p90 34.81 ms), 1847 published, 2 dropped;
+  animate p50 25.2 / p90 27.1 / p99 29.2 ms, tracker 6.4, latency p50
+  33.9 / p99 38.4. Four to eight milliseconds of headroom on his card; the
+  client's RTX 3060 (the networks ~2x slower) will want the 512-stage
+  compositing moved to the GPU -- the next lever, if it is needed.
+
+**His third look (08:10): "now the avatar looks good and works well" --
+then "can I not use the other avatars?" and "we need the .exe, the whole
+application working, to show a friend".** Built:
+
+- Every avatar with a portrait drives the swap engine as it is
+  (`SwapEngine.supports`: a `source_portrait` asset is all the swap
+  needs), so the library's LivePortrait and photograph avatars -- bidzo,
+  bidzo1, bidzo_new, my_avatar, my_avatar_neural, woman_person -- load in
+  the swap session without a copy; only the swap's own option keys are
+  read from a foreign manifest.
+- `shave = "auto"` (the default): the portrait decides. `beard_signal` is
+  the chin's lightness speckle over the cheeks' in the portrait's 512 crop
+  (stubble is a few-pixel speckle the cheeks lack): the clean-shaven
+  avatars read 1.18-1.54, the bearded my_avatar 1.77, the threshold 1.6.
+  A manifest's 0 or 1 overrides it.
+- `scripts/build_exe.py --engine swap`: the package with the three fp16
+  networks (512 MB), inswapper's cached emap and this card's plans, no
+  fp32 originals and no LivePortrait weights (1.2 + 1.6 GB stay home); the
+  shipped local.toml starts the swap engine. The friend's card builds its
+  own plans at the first start (~2 min, counted on the start-up window).
+  The run for the friend test: `--engine swap --avatar bidzo_swap
+  --avatar bidzo1 --avatar bidzo --avatar my_avatar_swap --avatar
+  woman_person --zip`.
+- The work committed in this clone's `road-c` branch and pushed to a new
+  repository, `sha256-tensorrt-clone`, on his word; `main` and
+  sha256-tensorrt untouched.
+
+Open: the friend test; C4's rest (the InsightFace licence for the client,
+the 3060 measurement, the 512-stage compositing on the GPU if the 3060
+needs it).
+
 ## What is left, in his order (written 2026-09-12 night, after the push)
 
 Everything above is on origin/main at c5eda18. What he wants next, in

@@ -72,7 +72,7 @@ def freeze() -> None:
     )
 
 
-def lay_out(avatars: list[str], switch_url: str | None) -> Path:
+def lay_out(avatars: list[str], switch_url: str | None, engine: str = "liveportrait") -> Path:
     if not FROZEN.is_dir():
         raise SystemExit(f"{FROZEN} is not there -- freeze first (or drop --no-freeze)")
     if PORTABLE.exists():
@@ -80,25 +80,59 @@ def lay_out(avatars: list[str], switch_url: str | None) -> Path:
     shutil.copytree(FROZEN, PORTABLE)
 
     models = REPO_ROOT / "models"
-    for name in ("downloads", "liveportrait"):
-        source = models / name
-        if not source.is_dir():
-            raise SystemExit(f"{source} is missing -- run the fetch scripts first")
-        shutil.copytree(source, PORTABLE / "models" / name)
+    downloads = models / "downloads"
+    if not downloads.is_dir():
+        raise SystemExit(f"{downloads} is missing -- run the fetch scripts first")
+    if engine == "swap":
+        # Road C (2026-10-17): the landmarker and the segmenters, then the
+        # swap's three networks as fp16 ONNX only (the fp32 originals and the
+        # buffalo_l pack stay home: 1.2 GB the package does not need) with
+        # inswapper's cached emap; LivePortrait's weights stay out too.
+        shutil.copytree(
+            downloads, PORTABLE / "models" / "downloads", ignore=shutil.ignore_patterns("swap")
+        )
+        swap = downloads / "swap"
+        target = PORTABLE / "models" / "downloads" / "swap"
+        (target / "buffalo_l").mkdir(parents=True)
+        for relative in (
+            "inswapper_128-fp16.onnx",
+            "gfpgan_1.4-fp16.onnx",
+            "buffalo_l/w600k_r50-fp16.onnx",
+            "inswapper_emap.npy",
+            "SHA256SUMS.txt",
+        ):
+            source = swap / relative
+            if not source.is_file():
+                raise SystemExit(
+                    f"{source} is missing -- run scripts/probes/swap_onnx_fp16.py first"
+                )
+            shutil.copy2(source, target / relative)
+            print(f"swap file: {relative} ({source.stat().st_size / 1e6:.0f} MB)")
+        plan_patterns = ("swap-*-fp16-sm*-trt*.plan*",)
+    else:
+        for name in ("downloads", "liveportrait"):
+            source = models / name
+            if not source.is_dir():
+                raise SystemExit(f"{source} is missing -- run the fetch scripts first")
+            shutil.copytree(source, PORTABLE / "models" / name)
+        plan_patterns = (
+            "liveportrait-pixels-fp16.onnx*",
+            "liveportrait-pixels-fp16-sm*-trt*.plan*",
+        )
 
     engines = models / "tensorrt"
     if engines.is_dir():
         target = PORTABLE / "models" / "tensorrt"
         target.mkdir(parents=True, exist_ok=True)
-        for pattern in (
-            "liveportrait-pixels-fp16.onnx*",
-            "liveportrait-pixels-fp16-sm*-trt*.plan*",
-        ):
+        for pattern in plan_patterns:
             for file in sorted(engines.glob(pattern)):
                 if ".failed." in file.name or file.name.endswith(".part"):
                     continue
                 shutil.copy2(file, target / file.name)
                 print(f"fast engine file: {file.name} ({file.stat().st_size / 1e6:.0f} MB)")
+    metadata = models / "metadata"
+    if metadata.is_dir():
+        shutil.copytree(metadata, PORTABLE / "models" / "metadata", dirs_exist_ok=True)
 
     library = PORTABLE / "avatars"
     library.mkdir(exist_ok=True)
@@ -120,7 +154,7 @@ def lay_out(avatars: list[str], switch_url: str | None) -> Path:
     # way a machine's own file is -- a TOML table may be declared once per
     # file, so nothing is appended to default.toml (the first build did,
     # and the frozen application died on "Cannot declare ('engine',) twice").
-    local = SHIPPED_OVERRIDES
+    local = SHIPPED_OVERRIDES.replace('backend = "liveportrait"', f'backend = "{engine}"', 1)
     if switch_url:
         # Day 17, his ask: the switch is read every five minutes (and at
         # every Start), not hourly, so a stop lands within minutes.
@@ -152,10 +186,17 @@ def main() -> int:
     parser.add_argument("--avatar", action="append", default=[], help="An avatar id to include.")
     parser.add_argument("--switch-url", default=None, help="The courtesy switch's file URL.")
     parser.add_argument("--zip", action="store_true", help="Also write dist/sha256-portable.zip.")
+    parser.add_argument(
+        "--engine",
+        choices=("liveportrait", "swap"),
+        default="liveportrait",
+        help="The engine the package starts with (road C, 2026-10-17): liveportrait with its "
+        "weights, or swap with its three fp16 networks and no LivePortrait weights.",
+    )
     args = parser.parse_args()
     if not args.no_freeze:
         freeze()
-    folder = lay_out(args.avatar, args.switch_url)
+    folder = lay_out(args.avatar, args.switch_url, args.engine)
     print(f"portable folder: {folder}")
     if args.zip:
         archive = shutil.make_archive(

@@ -20,6 +20,7 @@ from sha256.app.registry import Registries
 from sha256.avatar.cache import ResidencyCache
 from sha256.avatar.engine_liveportrait import LivePortraitEngine
 from sha256.avatar.engine_null import NullAvatarEngine
+from sha256.avatar.engine_swap import SwapEngine
 from sha256.avatar.engine_warp import WarpAvatarEngine
 from sha256.avatar.manager import AvatarManager
 from sha256.avatar.repository import FilesystemAvatarRepository
@@ -106,6 +107,15 @@ def register_builtin_backends(registries: Registries) -> None:
         LivePortraitEngine,
         description="Generates the portrait's face every frame with LivePortrait. Needs CUDA.",
         requires=("cv2", "torch"),
+    )
+    registries.engine.register(
+        "swap",
+        SwapEngine,
+        description=(
+            "Paints the portrait's identity onto the camera's face (inswapper + GFPGAN "
+            "on TensorRT). Needs CUDA."
+        ),
+        requires=("cv2", "torch", "tensorrt"),
     )
     registries.renderer.register(
         "null",
@@ -300,7 +310,7 @@ def _start_engine_with_fallback(
     try:
         engine.start()
     except EngineError as exc:
-        if settings.engine.backend != "liveportrait":
+        if settings.engine.backend not in ("liveportrait", "swap"):
             raise
         _LOG.warning("The neural engine cannot start here (%s); using the photograph engine", exc)
         notes.append(
@@ -425,6 +435,22 @@ def _create_engine(
             progress=progress,
         )
         return neural
+    if settings.engine.backend == "swap":
+        # Road C (2026-10-17): the landmarker for the portrait's five points,
+        # the swap's ONNX files under models/downloads/swap, the plans beside
+        # LivePortrait's, the fp16 block list in models/metadata.
+        from sha256.avatar.liveportrait_tensorrt import TENSORRT_RELATIVE_DIR
+        from sha256.avatar.swap_models import SWAP_BLOCKS_RELATIVE_PATH, SWAP_RELATIVE_DIR
+
+        swap: AvatarEngine = registries.engine.create(
+            "swap",
+            model_path=models_root / DEFAULT_MODEL_RELATIVE_PATH,
+            models=models_root / SWAP_RELATIVE_DIR,
+            engines=models_root / TENSORRT_RELATIVE_DIR,
+            blocks=models_root / SWAP_BLOCKS_RELATIVE_PATH,
+            progress=progress,
+        )
+        return swap
     if settings.engine.backend != "warp":
         placeholder: AvatarEngine = registries.engine.create(settings.engine.backend)
         return placeholder

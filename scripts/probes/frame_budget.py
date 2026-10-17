@@ -93,6 +93,12 @@ ENGINE_KEYS = (
     "paste_fit",
     "paste_post",
     "upload",
+    # the swap engine's parts (road C, 2026-10-17); None for LivePortrait
+    "align",
+    "swap",
+    "swap_paste",
+    "enhance",
+    "enhance_paste",
 )
 
 
@@ -329,6 +335,13 @@ def main() -> int:
         "tensorrt, the engine under models/tensorrt/ for this GPU (an error without "
         "it); auto, the engine when it is there. The application's own default is auto.",
     )
+    parser.add_argument(
+        "--engine",
+        choices=("liveportrait", "swap"),
+        default="liveportrait",
+        help="Which engine draws the face (road C, 2026-10-17): liveportrait, as always; "
+        "swap, the face swap (inswapper + GFPGAN on TensorRT) with a 'swap' avatar.",
+    )
     args = parser.parse_args()
 
     if args.mode == "threads" and args.pace == "asap":
@@ -349,20 +362,34 @@ def main() -> int:
         min_tracking_confidence=settings.tracking.min_tracking_confidence,
         redetect_in_crop=settings.tracking.redetect_in_crop,
     )
-    engine = LivePortraitEngine(
-        model_path=models / DEFAULT_MODEL_RELATIVE_PATH,
-        weights=models / DEFAULT_WEIGHTS_RELATIVE_PATH,
-        pixel_backend=args.pixel_backend,
-        engines=models / TENSORRT_RELATIVE_DIR,
-    )
-    engine.start()
-    print(f"pixel networks: {engine.pixel_backend} (asked: {args.pixel_backend})")
-    if args.cpu_paste:
-        engine.paste_on_gpu = False
-        print("paste: on the CPU")
-    if args.cpu_fit:
-        engine.fit_on_gpu = False
-        print("colour fit: on the CPU")
+    engine: Any
+    if args.engine == "swap":
+        from sha256.avatar.engine_swap import SwapEngine
+        from sha256.avatar.swap_models import SWAP_BLOCKS_RELATIVE_PATH, SWAP_RELATIVE_DIR
+
+        engine = SwapEngine(
+            model_path=models / DEFAULT_MODEL_RELATIVE_PATH,
+            models=models / SWAP_RELATIVE_DIR,
+            engines=models / TENSORRT_RELATIVE_DIR,
+            blocks=models / SWAP_BLOCKS_RELATIVE_PATH,
+        )
+        engine.start()
+        print("engine: swap (inswapper + GFPGAN on TensorRT)")
+    else:
+        engine = LivePortraitEngine(
+            model_path=models / DEFAULT_MODEL_RELATIVE_PATH,
+            weights=models / DEFAULT_WEIGHTS_RELATIVE_PATH,
+            pixel_backend=args.pixel_backend,
+            engines=models / TENSORRT_RELATIVE_DIR,
+        )
+        engine.start()
+        print(f"pixel networks: {engine.pixel_backend} (asked: {args.pixel_backend})")
+        if args.cpu_paste:
+            engine.paste_on_gpu = False
+            print("paste: on the CPU")
+        if args.cpu_fit:
+            engine.fit_on_gpu = False
+            print("colour fit: on the CPU")
     if args.deterministic:
         import torch
 
