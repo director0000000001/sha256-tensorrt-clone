@@ -99,6 +99,9 @@ ENGINE_KEYS = (
     "swap_paste",
     "enhance",
     "enhance_paste",
+    "shave",
+    "lips",
+    "skin",
 )
 
 

@@ -8018,6 +8018,37 @@ Open: the friend test; C4's rest (the InsightFace licence for the client,
 the 3060 measurement, the 512-stage compositing on the GPU if the 3060
 needs it).
 
+### C4 (2026-10-18): his library, the skin, the forehead, the package
+
+Pushed to github.com/director0000000001/sha256-tensorrt-clone (road-c) at
+682eccf in the morning. He added lalo, lima and saul_goodman with Add avatar
+and deleted four: the flow writes a LivePortrait manifest (the template is
+the first liveportrait avatar), the swap reads only its own keys from it
+and runs it with the defaults, so nothing had to change. His look: "the
+app gives the avatar a tan". Measured per stage on his presses (Lab
+medians of the face oval): inswapper keeps HIS lightness (his room light
+58-63 L* against the portraits' 65-72) and adds +2 a*; GFPGAN is neutral;
+the shave +1.5 L*. A first fix moved the face toward the portrait's
+median; live he called it worse ("see the forehead"): the portraits' skin
+is warm in numbers (a* +12..+15, b* +17..+21) although it reads white, and
+the swap paints the forehead paler and flatter than his, which no uniform
+colour change mends. Built: `forehead_fade` 0.8 (the hull falls off from
+the brow line to the oval's top), and `skin_match` with the person's own
+skin as its base (0 = his colour with the cast corrected, 1 = the
+portrait's, "off" = nothing), both layers landing on one goal colour by a
+per-channel gain table (`gain_lut`, the shadows kept), eased 0.2 a frame.
+The first version was a Lab offset at 2.8 ms and cost the 30 fps (28.4);
+the table costs 0.3 ms and `lab_median` on the strided picture gave a
+millisecond back. Numbers: the hairline step at the camera's own (+6.7
+against +7.1), the cheek's a*/b* his (+6/+15). frame_budget, threads,
+realtime, driving.mkv: 30.0 fps, animate 25.1 p50 / 28.4 p99, skin 1.2
+ms. His word: "ideal". The package: `ensure_plans` required the fp32 ONNX
+the package does not ship -- fixed (`fp16_source`); sm75's builder
+resource added for the RTX 20 series. Built with `scripts/build_exe.py
+--engine swap --avatar bidzo_swap --avatar saul_goodman --avatar lima
+--avatar lalo --avatar bidzo1 --avatar woman_person --avatar my_avatar_swap
+--zip` for his friend's machine.
+
 ## What is left, in his order (written 2026-09-12 night, after the push)
 
 Everything above is on origin/main at c5eda18. What he wants next, in

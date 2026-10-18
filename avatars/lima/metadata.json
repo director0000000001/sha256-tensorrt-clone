@@ -1,11 +1,11 @@
 {
   "manifest_version": 1,
-  "id": "my_avatar_neural",
-  "name": "My Avatar (neural)",
-  "version": "0.1.0",
-  "description": "The owner's portrait driven by LivePortrait: one photograph, a face generated every frame. The same portrait.png as my_avatar; no ladders, no clips.",
+  "id": "lima",
+  "name": "lima",
+  "version": "1.0.0",
+  "description": "Added from the application on 2026-10-18: face 450 px tall in a 1030x1070 picture, pose -11.6 / -0.0 / +0.9 deg (pitch / yaw / roll), eyes 0.32, mouth 0.002, room below the chin 0.40 of the face height, skin light skin with a neutral undertone, sRGB #D2A387.",
   "tags": [
-    "owner",
+    "owner-added",
     "neural"
   ],
   "preview": null,
@@ -13,17 +13,44 @@
     {
       "path": "portrait.png",
       "role": "source_portrait",
-      "optional": false
+      "sha256": null,
+      "size_bytes": null,
+      "optional": false,
+      "yaw": null,
+      "smile": null,
+      "eyes": null,
+      "brows": null,
+      "speech": null,
+      "speech_width": null
+    },
+    {
+      "path": "original.jpg",
+      "role": "source_original",
+      "sha256": null,
+      "size_bytes": null,
+      "optional": true,
+      "yaw": null,
+      "smile": null,
+      "eyes": null,
+      "brows": null,
+      "speech": null,
+      "speech_width": null
     }
   ],
   "engine": {
     "engine_id": "liveportrait",
+    "min_engine_version": null,
     "estimated_vram_mb": 4500,
     "device_preference": "cuda"
   },
   "rendering": {
     "output_width": 1280,
-    "output_height": 720
+    "output_height": 720,
+    "background": "solid",
+    "background_color": "#101014",
+    "mirror": false,
+    "expression_scale": 1.0,
+    "head_motion_scale": 1.0
   },
   "engine_options": {
     "anchor_frames": 15,
@@ -63,10 +90,11 @@
     "edge_match": 1.0,
     "mouth_rest": "anchor",
     "lip_rest_tracking": 100,
-    "mask_chin_reach": 0.04,
+    "mask_chin_reach": "auto",
     "brow_mouth_leak": 1.0,
     "blink_brow_hold": 0.015,
     "blink_mouth_hold": -0.002,
     "blink_mouth_lift": 0.01
-  }
+  },
+  "fictional": true
 }

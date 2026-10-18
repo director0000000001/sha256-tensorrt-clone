@@ -1,9 +1,9 @@
 {
   "manifest_version": 1,
-  "id": "bidzo",
-  "name": "bidzo",
+  "id": "saul_goodman",
+  "name": "saul_goodman",
   "version": "1.0.0",
-  "description": "Added from the application on 2026-10-16: face 397 px tall in a 1328x1006 picture, pose -11.3 / +0.1 / +2.6 deg (pitch / yaw / roll), eyes 0.34, mouth 0.110, room below the chin 0.51 of the face height, skin light skin with a neutral undertone, sRGB #E8AB8F.",
+  "description": "Added from the application on 2026-10-18: face 380 px tall in a 1024x1201 picture, pose -8.0 / -0.8 / +0.8 deg (pitch / yaw / roll), eyes 0.31, mouth 0.003, room below the chin 1.17 of the face height, skin light skin with a neutral undertone, sRGB #E2A98D.",
   "tags": [
     "owner-added",
     "neural"

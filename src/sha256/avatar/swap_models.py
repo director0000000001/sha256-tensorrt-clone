@@ -59,6 +59,8 @@ __all__ = [
     "estimate_norm",
     "five_points",
     "fp16_onnx_path",
+    "fp16_source",
+    "gain_lut",
     "lab_median",
     "lab_shift",
     "lips_from_portrait",
@@ -70,6 +72,8 @@ __all__ = [
     "ring_mask",
     "shave",
     "shave_zone",
+    "skin_goal",
+    "skin_shift",
     "to_fp16",
     "toposort",
     "umeyama",
@@ -338,6 +342,7 @@ def crop_mask(
     feather: float = 0.04,
     mouth_hole: float = 0.0,
     lips_keep: float = 0.0,
+    forehead_fade: float = 0.0,
 ) -> np.ndarray:
     """A float32 mask in the crop's own space (``size`` x ``size``, 0..1).
 
@@ -349,7 +354,11 @@ def crop_mask(
     the hair and the background. ``mouth_hole`` (0..1) takes that share of the
     mask away inside the inner lips, so the driver's own teeth and tongue
     show through an open mouth; ``lips_keep`` (0..1) does the same inside the
-    outer lips, the whole mouth then the driver's own."""
+    outer lips, the whole mouth then the driver's own. ``forehead_fade``
+    (0..1) lets the mask fall off from the brow line up to the oval's top,
+    where it is ``1 - forehead_fade`` of itself: the driver's own forehead
+    shows through (his look 2026-10-18: the avatar's forehead came paler and
+    flatter than his, a band at the hairline; no identity sits there)."""
     import cv2
 
     box: Any
@@ -392,6 +401,16 @@ def crop_mask(
     f = max(int(face_h * feather), 2)
     out = cv2.GaussianBlur(out, (2 * f + 1, 2 * f + 1), 0)
     out = out / 255.0
+    if forehead_fade > 0.0:
+        brows = points_px[list(BROW_LINE), :2].astype(np.float64)
+        brow_y = float(
+            (np.hstack([brows, np.ones((brows.shape[0], 1))]) @ np.asarray(m).T)[:, 1].mean()
+        )
+        top_y = float(in_crop[:, 1].min())
+        if brow_y - top_y > 2.0:
+            ys = np.arange(size, dtype=np.float32)
+            ramp = np.clip((brow_y - ys) / (brow_y - top_y), 0.0, 1.0)
+            out = out * (1.0 - float(forehead_fade) * ramp)[:, None]
     if lips_keep > 0.0:
         lips = ring_mask(size, points_px, m, OUTER_LIPS, erode=0.0, feather=0.15)
         if lips is not None:
@@ -485,6 +504,8 @@ LOWER_INNER = (78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308)
 NOSE_BASE = 2
 CHIN = 152
 FOREHEAD_TOP = 10
+# The upper edge of the brows, left and right: the line the forehead fade starts from.
+BROW_LINE = (105, 66, 107, 334, 296, 336)
 
 
 def _lip_triangles() -> tuple[tuple[int, int, int], ...]:
@@ -583,7 +604,9 @@ def lab_median(image: np.ndarray, mask: np.ndarray, stride: int = 2) -> np.ndarr
     """The Lab median of ``image`` inside ``mask``, on every ``stride``-th pixel."""
     import cv2
 
-    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)[::stride, ::stride]
+    # the strided picture converted, not the whole one (0.05 ms at 512 / 4, not 0.5)
+    sub = np.ascontiguousarray(image[::stride, ::stride])
+    lab = cv2.cvtColor(sub, cv2.COLOR_BGR2LAB).astype(np.float32)
     inside = mask[::stride, ::stride] > 0.5
     if inside.sum() < 16:
         return np.zeros(3, dtype=np.float32)
@@ -617,6 +640,65 @@ def lab_shift(
     out = image.copy()
     out[y0:y1, x0:x1] = cv2.cvtColor(np.clip(part, 0, 255).astype(np.uint8), cv2.COLOR_LAB2BGR)
     return out
+
+
+# The most a skin match may move a channel, in 8-bit Lab: ~16 L*, 20 a*, 20 b*.
+SKIN_SHIFT_LIMIT = (40.0, 20.0, 20.0)
+# The gain a channel may get from a skin match (the lookup table saturates above).
+SKIN_GAIN_LIMIT = (0.7, 1.35)
+
+
+def skin_goal(portrait_skin: np.ndarray, median: np.ndarray, strength: float) -> np.ndarray | None:
+    """The Lab skin colour a frame aims at: the face's skin ``median``
+    (:func:`lab_median`) moved ``strength`` (0..1) of the way to
+    ``portrait_skin`` (the portrait's); ``None`` when there was no skin to
+    read. Every layer of the frame then lands on this one colour
+    (:func:`skin_shift`), so ``strength`` means what it says whatever the
+    layers' own blend."""
+    median = np.asarray(median, dtype=np.float32)
+    if not median.any():
+        return None
+    portrait = np.asarray(portrait_skin, dtype=np.float32)
+    return np.asarray(median + float(strength) * (portrait - median), dtype=np.float32)
+
+
+def skin_shift(
+    goal: np.ndarray,
+    median: np.ndarray,
+    previous: np.ndarray | None = None,
+    *,
+    smoothing: float = 0.2,
+) -> np.ndarray:
+    """The Lab shift that lands a layer's skin ``median`` on ``goal``
+    (:func:`skin_goal`), each channel held within :data:`SKIN_SHIFT_LIMIT`,
+    and eased from ``previous`` (an exponential average, ``smoothing`` of the
+    way per call) so the face does not flicker from frame to frame. With no
+    skin to read (a zero median), ``previous`` stands."""
+    median = np.asarray(median, dtype=np.float32)
+    if not median.any():
+        return previous if previous is not None else np.zeros(3, dtype=np.float32)
+    limit = np.asarray(SKIN_SHIFT_LIMIT, dtype=np.float32)
+    target = np.clip(np.asarray(goal, dtype=np.float32) - median, -limit, limit)
+    if previous is None:
+        return np.asarray(target, dtype=np.float32)
+    return np.asarray(previous + float(smoothing) * (target - previous), dtype=np.float32)
+
+
+def gain_lut(lab_from: np.ndarray, lab_to: np.ndarray) -> np.ndarray:
+    """A per-channel BGR lookup table (256 x 1 x 3, for ``cv2.LUT``) that
+    moves the colour ``lab_from`` to ``lab_to`` (8-bit Lab) by a gain per
+    channel, each within :data:`SKIN_GAIN_LIMIT`: an exposure-like change
+    that keeps the shadows dark and the highlights in place, where a Lab
+    offset lifts every pixel alike (a foundation look), at 0.3 ms for a
+    512 px face against 2.5."""
+    import cv2
+
+    pair = np.clip(np.stack([lab_from, lab_to]), 0, 255).astype(np.uint8).reshape(1, 2, 3)
+    bgr = cv2.cvtColor(pair, cv2.COLOR_LAB2BGR).astype(np.float32).reshape(2, 3)
+    gains = np.clip(bgr[1] / np.maximum(bgr[0], 1.0), *SKIN_GAIN_LIMIT)
+    ramp = np.arange(256, dtype=np.float32)
+    table = np.clip(np.round(ramp[:, None] * gains[None, :]), 0, 255).astype(np.uint8)
+    return np.ascontiguousarray(table.reshape(256, 1, 3))
 
 
 def lips_from_portrait(
@@ -954,6 +1036,26 @@ def plan_path(engines: Path, net: str, compute_capability: tuple[int, int], vers
     return engines / f"swap-{net}-fp16-sm{major}{minor}-trt{version}.plan"
 
 
+def fp16_source(models: Path, relative: Path) -> tuple[Path, Path | None]:
+    """The fp16 ONNX a plan is built from and, when it has still to be
+    written, the fp32 original to write it from (``None`` once the fp16
+    copy is there). A package ships the fp16 copies only
+    (``scripts/build_exe.py --engine swap``), so the original is asked for
+    only when it is needed (2026-10-18: the first start on another graphics
+    card died asking for it); neither there is a :class:`FileNotFoundError`."""
+    onnx_path = models / relative
+    onnx16 = fp16_onnx_path(onnx_path)
+    if onnx16.is_file():
+        return onnx16, None
+    if onnx_path.is_file():
+        return onnx16, onnx_path
+    msg = (
+        f"the swap's network is missing: {onnx16} "
+        f"(nor the original {onnx_path.name} to write it from)"
+    )
+    raise FileNotFoundError(msg)
+
+
 def ensure_plans(
     models: Path,
     engines: Path,
@@ -976,19 +1078,15 @@ def ensure_plans(
         flagged = json.loads(blocks_path.read_text(encoding="utf-8")).get("blocks", {})
     plans: dict[str, Path] = {}
     for net, relative in ONNX_FILES.items():
-        onnx_path = models / relative
         plan = plan_path(engines, net, cc, version)
         plans[net] = plan
         if plan.is_file():
             continue
-        if not onnx_path.is_file():
-            msg = f"the swap's {net} network is missing: {onnx_path}"
-            raise FileNotFoundError(msg)
-        onnx16 = fp16_onnx_path(onnx_path)
-        if not onnx16.is_file():
+        onnx16, original = fp16_source(models, relative)
+        if original is not None:
             if progress is not None:
                 progress(f"Preparing the {net} network for this graphics card")
-            write_fp16_onnx(onnx_path, onnx16, flagged.get(net))
+            write_fp16_onnx(original, onnx16, flagged.get(net))
         head = f"Building the {net} engine for this graphics card (once, a minute)"
         if progress is not None:
             progress(head)

@@ -28,6 +28,14 @@ Manifest: ``engine.engine_id = "swap"``, one asset with role
   (a bearded avatar keeps it), 0 or 1 says so outright.
 - ``swap_zoom`` (1.0), ``swap_shift`` (0.0): the swap crop drawn smaller or
   higher (more chin); measured, neither helped the mouth, so both stay off.
+- ``skin_match`` (0.0): the face's skin colour, 0 the driver's own (the
+  swap's and the restorer's warm cast corrected, the face the colour of his
+  neck) and 1 the portrait's, eased over frames; ``"off"`` leaves the colour
+  as the networks drew it (his look 2026-10-18, "the app gives the avatar a
+  tan": the swap keeps the driver's lightness and adds red and yellow).
+- ``forehead_fade`` (0.8): the paste fading from the brows up to the hairline,
+  so the driver's own forehead shows through (2026-10-18: the avatar's
+  forehead came paler and flatter than his, a band at the hairline).
 
 See :mod:`sha256.avatar.swap_models` for the networks and the TensorRT plans.
 """
@@ -70,9 +78,18 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "lips_keep": 0.0,
     "lips_source": "avatar",
     "shave": "auto",
+    "skin_match": 0.0,
+    "forehead_fade": 0.8,
     "swap_zoom": 1.0,
     "swap_shift": 0.0,
 }
+
+
+def _skin_match(raw: Any) -> float | None:
+    """The ``skin_match`` option as a strength, ``None`` when it is off."""
+    if raw is None or raw is False or (isinstance(raw, str) and raw.lower() in ("off", "none")):
+        return None
+    return float(raw)
 
 
 @dataclass
@@ -85,6 +102,9 @@ class _Loaded:
     portrait_pts512: np.ndarray | None = None
     portrait_hull512: np.ndarray | None = None
     portrait_lab: np.ndarray | None = None
+    # the skin match's eased shifts, one per layer (see ``animate``)
+    skin_shift128: np.ndarray | None = None
+    skin_shift512: np.ndarray | None = None
 
 
 class SwapEngine:
@@ -361,9 +381,7 @@ class SwapEngine:
             shift=float(options.get("swap_shift", 0.0)),
         )
         crop = sm.warp(scene, m128, SWAP_SIZE)
-        t1 = time.perf_counter()
-        swapped = self._nets.swap(crop, loaded.latent)
-        t2 = time.perf_counter()
+        fade = float(options.get("forehead_fade", 0.0))
         mask = sm.crop_mask(
             SWAP_SIZE,
             mode=str(options.get("swap_mask", "hull")),
@@ -373,7 +391,28 @@ class SwapEngine:
             feather=feather,
             mouth_hole=mouth_hole,
             lips_keep=lips_keep,
+            forehead_fade=fade,
         )
+        # the skin colour this frame aims at: the driver's own (his crop, before
+        # the swap) moved skin_match of the way to the portrait's; the swap's
+        # layer and the restorer's below both land on it
+        skin_match = _skin_match(options.get("skin_match", 0.0))
+        skin_goal: np.ndarray | None = None
+        self.last_timings["skin_ms"] = 0.0
+        if skin_match is not None and loaded.portrait_lab is not None:
+            tk = time.perf_counter()
+            own = sm.lab_median(crop, mask, stride=1)
+            skin_goal = sm.skin_goal(loaded.portrait_lab, own, skin_match)
+            self.last_timings["skin_ms"] += (time.perf_counter() - tk) * 1000.0
+        t1 = time.perf_counter()
+        swapped = self._nets.swap(crop, loaded.latent)
+        t2 = time.perf_counter()
+        if skin_goal is not None:
+            tk = time.perf_counter()
+            median = sm.lab_median(swapped, mask, stride=1)
+            loaded.skin_shift128 = sm.skin_shift(skin_goal, median, loaded.skin_shift128)
+            swapped = cv2.LUT(swapped, sm.gain_lut(median, median + loaded.skin_shift128))
+            self.last_timings["skin_ms"] += (time.perf_counter() - tk) * 1000.0
         sm.paste(scene, swapped, m128, mask)
         t3 = time.perf_counter()
 
@@ -395,6 +434,7 @@ class SwapEngine:
                         m=m512 * 0.5,
                         grow=grow,
                         feather=feather,
+                        forehead_fade=fade,
                     ),
                     (ENHANCE_SIZE, ENHANCE_SIZE),
                     interpolation=cv2.INTER_LINEAR,
@@ -412,6 +452,12 @@ class SwapEngine:
             t4 = time.perf_counter()
             restored = self._nets.enhance(face)
             t5 = time.perf_counter()
+            if skin_goal is not None:
+                tk = time.perf_counter()
+                median = sm.lab_median(restored, hull, stride=4)
+                loaded.skin_shift512 = sm.skin_shift(skin_goal, median, loaded.skin_shift512)
+                restored = cv2.LUT(restored, sm.gain_lut(median, median + loaded.skin_shift512))
+                self.last_timings["skin_ms"] += (time.perf_counter() - tk) * 1000.0
             if (
                 lips_source == "avatar"
                 and loaded.portrait512 is not None

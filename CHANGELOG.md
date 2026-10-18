@@ -39,6 +39,38 @@ Versions below `1.0.0` carry no API stability guarantee.
   the client's copy needs InsightFace's commercial licence for
   inswapper_128 and the recognition model (docs/development/ROADMAP.md,
   "Road C").
+- **Road C, C4 (2026-10-18): the skin the person's own, the forehead
+  theirs, the library from the application.** His look of the night: "the
+  app gives the avatar a tan", and after a first fix toward the portrait,
+  "worse, see the forehead". Measured on his presses: inswapper keeps the
+  person's lightness and adds red and yellow (+2..+6 a*/b* on the cheek),
+  GFPGAN sharpens a forehead the swap paints paler and flatter than his,
+  and the portraits' skin is warm in numbers (a* +12..+15) though it reads
+  white on a white background, so pulling the face toward it made it
+  pinker. Now `skin_match` (default 0): the face's skin colour lands on the
+  person's own, read off their crop before the swap, the swap's and the
+  restorer's cast corrected, the face the colour of their neck; 1 is the
+  portrait's, "off" leaves the networks' colour. Both layers (the swap's
+  and the restorer's) land on the one goal colour by a per-channel gain
+  table (exposure-like, the shadows stay dark; 0.3 ms), eased over frames
+  so nothing flickers. `forehead_fade` (default 0.8): the paste falls off
+  from the brows up to the hairline, so the person's own forehead shows
+  through and the band at the hairline is gone. `lab_median` converts the
+  strided picture only (the lips' and the shave's medians a millisecond
+  cheaper together). Add avatar works with the swap engine as it is (the
+  manifest copies a LivePortrait template; the swap reads its own keys):
+  lalo, lima and saul_goodman were added from the application today; bidzo,
+  bidzo_new, my_avatar and my_avatar_neural were deleted in it. Measured
+  over driving.mkv: 30.0 fps, the engine 25.1 ms p50 / 28.4 p99, the skin
+  work 1.2 ms.
+- **Fixed (2026-10-18): the packaged swap could not build its plans on
+  another graphics card.** `ensure_plans` asked for the fp32 ONNX before
+  looking for the fp16 copy, and `build_exe.py --engine swap` ships the
+  fp16 copies only; on any card without a shipped plan the first start
+  died with "network is missing". Now the fp16 copy is what a plan is
+  built from and the fp32 original is needed only to write it
+  (`fp16_source`). The package also carries TensorRT's builder resource
+  for the RTX 20 series (sm75), beside the 30 and 40 series.
 
 - **Day 23 (2026-10-16): the avatar in the person's own skin colour, and
   shaved (the owner's ideas, from his recording).** Add avatar's window now

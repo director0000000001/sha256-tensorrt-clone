@@ -385,3 +385,115 @@ def test_shave_smooths_the_zone_and_leaves_the_rest():
     assert np.array_equal(
         out[ey - 4 : ey + 4, ex - 4 : ex + 4], face[ey - 4 : ey + 4, ex - 4 : ex + 4]
     )
+
+
+# --- the skin toward the portrait's (his look 2026-10-18: "a tan") -------------------------
+
+
+def test_lab_median_reads_the_strided_pixels_like_the_whole_picture():
+    import cv2
+
+    rng = np.random.default_rng(3)
+    image = rng.integers(0, 256, size=(32, 32, 3), dtype=np.uint8)
+    mask = np.ones((32, 32), dtype=np.float32)
+    whole = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)[::4, ::4]
+    expected = np.median(whole.reshape(-1, 3), axis=0)
+    assert np.allclose(sm.lab_median(image, mask, stride=4), expected)
+
+
+def test_skin_goal_is_the_skin_moved_part_way_to_the_portrait():
+    median = np.array([150.0, 134.0, 146.0], dtype=np.float32)
+    portrait = median + np.array([10.0, 4.0, -2.0], dtype=np.float32)
+    assert np.allclose(sm.skin_goal(portrait, median, 1.0), portrait)
+    halfway = median + np.array([5.0, 2.0, -1.0], dtype=np.float32)
+    assert np.allclose(sm.skin_goal(portrait, median, 0.5), halfway)
+    assert sm.skin_goal(portrait, np.zeros(3, dtype=np.float32), 1.0) is None
+
+
+def test_skin_shift_lands_on_the_goal_clipped_and_eased():
+    median = np.array([150.0, 134.0, 146.0], dtype=np.float32)
+    goal = median + np.array([10.0, 4.0, -2.0], dtype=np.float32)
+    full = sm.skin_shift(goal, median, None)
+    assert np.allclose(full, [10.0, 4.0, -2.0])
+    far = median + np.array([100.0, 60.0, -60.0], dtype=np.float32)
+    assert np.allclose(sm.skin_shift(far, median, None), [40.0, 20.0, -20.0])
+    eased = sm.skin_shift(goal, median, np.zeros(3, dtype=np.float32))
+    assert np.allclose(eased, [2.0, 0.8, -0.4])  # a fifth of the way per frame
+    assert sm.skin_shift(goal, np.zeros(3, dtype=np.float32), full) is full
+
+
+def test_gain_lut_moves_the_skin_colour_and_keeps_the_shadows_dark():
+    import cv2
+
+    image = np.full((16, 16, 3), (110, 130, 160), dtype=np.uint8)
+    mask = np.ones((16, 16), dtype=np.float32)
+    median = sm.lab_median(image, mask, stride=1)
+    goal = median + np.array([12.0, 3.0, 2.0], dtype=np.float32)
+    lut = sm.gain_lut(median, goal)
+    assert lut.shape == (256, 1, 3) and lut.dtype == np.uint8
+    moved = cv2.LUT(image, lut)
+    assert np.allclose(sm.lab_median(moved, mask, stride=1), goal, atol=2.0)
+    dark = cv2.LUT(np.full((2, 2, 3), 8, dtype=np.uint8), lut)
+    assert dark.max() <= 11  # a gain, not an offset: the shadows stay shadows
+    assert cv2.LUT(np.full((2, 2, 3), 255, dtype=np.uint8), lut).min() == 255  # saturates
+    # the gains are held within SKIN_GAIN_LIMIT
+    wild = sm.gain_lut(median, median + np.array([120.0, 0.0, 0.0], dtype=np.float32))
+    assert wild[200, 0].max() <= round(200 * sm.SKIN_GAIN_LIMIT[1])
+
+
+def test_fp16_source_prefers_the_fp16_copy_and_names_what_is_missing(tmp_path):
+    from pathlib import Path
+
+    relative = Path("buffalo_l") / "w600k_r50.onnx"
+    (tmp_path / "buffalo_l").mkdir()
+    with pytest.raises(FileNotFoundError, match=r"w600k_r50-fp16.onnx"):
+        sm.fp16_source(tmp_path, relative)
+    original = tmp_path / relative
+    original.write_bytes(b"fp32")
+    assert sm.fp16_source(tmp_path, relative) == (sm.fp16_onnx_path(original), original)
+    sm.fp16_onnx_path(original).write_bytes(b"fp16")
+    assert sm.fp16_source(tmp_path, relative) == (sm.fp16_onnx_path(original), None)
+    original.unlink()  # a package: the fp16 copy alone is enough
+    assert sm.fp16_source(tmp_path, relative) == (sm.fp16_onnx_path(original), None)
+
+
+def test_skin_match_and_forehead_fade_defaults_and_the_off_switch():
+    from sha256.avatar.engine_swap import DEFAULT_OPTIONS, _skin_match
+
+    assert DEFAULT_OPTIONS["skin_match"] == 0.0
+    assert DEFAULT_OPTIONS["forehead_fade"] == 0.8
+    assert _skin_match(0.5) == 0.5
+    assert _skin_match(0) == 0.0  # still active: the driver's own skin colour
+    assert _skin_match("off") is None
+    assert _skin_match(None) is None
+    assert _skin_match(False) is None
+
+
+def _oval_points(size: int, brow_y: float) -> np.ndarray:
+    """478 points at the crop's centre, the face oval on an ellipse and the
+    brow line at ``brow_y`` -- in the crop's own space (``m`` = identity)."""
+    pts = np.full((478, 2), size / 2.0, dtype=np.float32)
+    n = len(sm.FACE_OVAL)
+    for i, idx in enumerate(sm.FACE_OVAL):
+        angle = 2.0 * np.pi * i / n
+        x = size / 2.0 + 0.3 * size * np.sin(angle)
+        pts[idx] = (x, 0.55 * size - 0.4 * size * np.cos(angle))
+    for idx in sm.BROW_LINE:
+        pts[idx] = (size / 2.0, brow_y)
+    return pts
+
+
+def test_forehead_fade_lowers_the_mask_above_the_brows_only():
+    size = 128
+    eye = np.eye(2, 3, dtype=np.float64)
+    pts = _oval_points(size, brow_y=45.0)  # the oval's top sits at 0.15 * size = 19
+    plain = sm.crop_mask(size, mode="hull", points_px=pts, m=eye)
+    faded = sm.crop_mask(size, mode="hull", points_px=pts, m=eye, forehead_fade=1.0)
+    x = size // 2
+    assert np.allclose(faded[60:100, x], plain[60:100, x])  # below the brows: untouched
+    assert faded[45, x] == pytest.approx(plain[45, x], abs=0.02)  # at the brow line: whole
+    # halfway up the forehead about half, at the oval's top next to nothing
+    assert faded[32, x] == pytest.approx(plain[32, x] * 0.5, abs=0.04)
+    assert faded[20, x] < 0.06 * plain[20, x] + 0.01
+    half = sm.crop_mask(size, mode="hull", points_px=pts, m=eye, forehead_fade=0.5)
+    assert half[20, x] == pytest.approx(plain[20, x] * 0.5, abs=0.04)

@@ -52,7 +52,8 @@ for package in ("mediapipe",):
 # via the wrapper, not inside the bundle.
 
 # The fast engine's DLLs, by name, into the package's own folder.
-TENSORRT_BUILDER_FAMILIES = ("86", "89")
+# The RTX 20 series (sm75, 2026-10-18, his friend's machine unknown), 30 and 40.
+TENSORRT_BUILDER_FAMILIES = ("75", "86", "89")
 binaries = []
 tensorrt_dlls: set[str] = set()
 _libs_spec = importlib.util.find_spec("tensorrt_libs")
