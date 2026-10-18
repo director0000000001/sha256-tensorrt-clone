@@ -25,7 +25,7 @@ What the folder holds, and why each part is where it is:
   development defaults are the null backends), the kill switch URL from
   ``--switch-url`` and the default avatar, layered over the defaults the
   way a machine's own local.toml is.
-* ``USER_GUIDE.md`` -- ``docs/USER_GUIDE.md``.
+* No guide: the tester reads nothing, the owner presents (2026-10-18, his word).
 
 The layout is what ``AppPaths.portable_root`` recognises: a frozen
 executable with ``models`` beside it keeps everything in its own folder.
@@ -169,7 +169,6 @@ def lay_out(avatars: list[str], switch_url: str | None, engine: str = "liveportr
     if owner.is_file():
         shutil.copy2(owner, configs / "local.owner.json")
 
-    shutil.copy2(REPO_ROOT / "docs" / "USER_GUIDE.md", PORTABLE / "USER_GUIDE.md")
     # The window's background photograph, when this checkout has one (it is
     # the owner's, gitignored; the window falls back to a plain colour).
     assets = REPO_ROOT / "assets"
